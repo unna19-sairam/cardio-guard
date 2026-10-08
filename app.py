@@ -1,8 +1,14 @@
 import joblib
 import pandas as pd
 import streamlit as st
+from openai import OpenAI
 
 st.set_page_config(page_title="CardioGuard", page_icon="🫀", layout="wide")
+
+# Initialize OpenAI client using Streamlit Secrets or environment variable
+client = None
+if "OPENAI_API_KEY" in st.secrets:
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # ---------------------------------------------------------
 # 1. MULTILINGUAL DICTIONARY
@@ -21,8 +27,8 @@ TRANSLATIONS = {
         "low_risk": "✅ Low Heart Attack Risk Detected:",
         "doc_dashboard": "👨‍⚕️ Doctor Clinical Dashboard",
         "select_patient": "Select Patient to Review:",
-        "chat_header": "💬 Interactive Cardiac Consultation Assistant",
-        "chat_placeholder": "Ask about your risk, diet, or clinical next steps...",
+        "chat_header": "💬 LLM Cardiac Consultation Assistant",
+        "chat_placeholder": "Ask anything about risk, diet, medications, or health steps...",
     },
     "Hindi": {
         "title": "🫀 कार्डियोगार्ड: बहु-भूमिका कार्डियक प्लेटफॉर्म",
@@ -37,8 +43,8 @@ TRANSLATIONS = {
         "low_risk": "✅ हृदयघात का कम जोखिम पाया गया:",
         "doc_dashboard": "👨‍⚕️ डॉक्टर क्लिनिकल डैशबोर्ड",
         "select_patient": "समीक्षा के लिए मरीज़ चुनें:",
-        "chat_header": "💬 इंटरएक्टिव हृदय परामर्श सहायक",
-        "chat_placeholder": "अपने जोखिम, आहार या अगले चरणों के बारे में पूछें...",
+        "chat_header": "💬 एलएलएम हृदय परामर्श सहायक",
+        "chat_placeholder": "अपने जोखिम, आहार, दवाओं या स्वास्थ्य कदमों के बारे में पूछें...",
     },
     "Kannada": {
         "title": "🫀 ಕಾರ್ಡಿಯೋಗಾರ್ಡ್: ಮಲ್ಟಿ-ರೋಲ್ ಕಾರ್ಡಿಯಾಕ್ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್",
@@ -53,7 +59,7 @@ TRANSLATIONS = {
         "low_risk": "✅ ಕಡಿಮೆ ಹೃದಯಾಘಾತದ ಅಪಾಯ ಕಂಡುಬಂದಿದೆ:",
         "doc_dashboard": "👨‍⚕️ ವೈದ್ಯಕೀಯ ಕ್ಲಿನಿಕಲ್ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
         "select_patient": "ಪರಿಶೀಲಿಸಲು ರೋಗಿಯನ್ನು ಆಯ್ಕೆಮಾಡಿ:",
-        "chat_header": "💬 ಸಂವಾದಾತ್ಮಕ ಹೃದಯ ಸಮಾಲೋಚನೆ ಸಹಾಯಕ",
+        "chat_header": "💬 AI ಸಂವಾದಾತ್ಮಕ ವೈದ್ಯಕೀಯ ಸಮಾಲೋಚನೆ ಸಹಾಯಕ",
         "chat_placeholder": "ನಿಮ್ಮ ಅಪಾಯ, ಆಹಾರ ಪದ್ಧತಿಯ ಬಗ್ಗೆ ಕೇಳಿ...",
     },
     "Telugu": {
@@ -69,7 +75,7 @@ TRANSLATIONS = {
         "low_risk": "✅ గుండెపోటు వచ్చే ప్రమాదం తక్కువగా ఉంది:",
         "doc_dashboard": "👨‍⚕️ డాక్టర్ క్లినికల్ డాష్‌బోర్డ్",
         "select_patient": "పరిశీలించడానికి పేషెంట్‌ను ఎంచుకోండి:",
-        "chat_header": "💬 ఇంటరాక్టివ్ కార్డియాక్ కన్సల్టేషన్ అసిస్టెంట్",
+        "chat_header": "💬 ఏఐ కార్డియాక్ కన్సల్టేషన్ అసిస్టెంట్",
         "chat_placeholder": "మీ ప్రమాదం, ఆహారం గురించి అడగండి...",
     },
     "Tamil": {
@@ -85,7 +91,7 @@ TRANSLATIONS = {
         "low_risk": "✅ மாரடைப்பு ஏற்படும் அபாயம் குறைவு:",
         "doc_dashboard": "👨‍⚕️ மருத்துவர் மருத்துவ டாஷ்போர்டு",
         "select_patient": "பரிசீலிக்க நோயாளியைத் தேர்ந்தெடுக்கவும்:",
-        "chat_header": "💬 கார்டியாக் ஆலோசனைக் உதவியாளர்",
+        "chat_header": "💬 AI கார்டியாக் ஆலோசனைக் உதவியாளர்",
         "chat_placeholder": "உங்கள் அபாயம், உணவு குறித்து கேட்கவும்...",
     },
 }
@@ -136,7 +142,7 @@ if "authenticated" not in st.session_state:
 if "user_role" not in st.session_state:
     st.session_state.user_role = None
 if "active_id" not in st.session_state:
-    st.session_state.active_id = "P101"  # Safe default fallback
+    st.session_state.active_id = "P101"
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
@@ -200,9 +206,7 @@ if st.sidebar.button(t["logout"]):
 
 st.title(t["title"])
 
-# ---------------------------------------------------------
-# 4. SAFETY CHECK FOR ACTIVE_ID (FIXES KEYERROR)
-# ---------------------------------------------------------
+# Safety Check for Active Patient ID
 if (
     st.session_state.active_id is None
     or st.session_state.active_id not in st.session_state.database
@@ -210,12 +214,11 @@ if (
     st.session_state.active_id = list(st.session_state.database.keys())[0]
 
 # ---------------------------------------------------------
-# 5. DOCTOR VS PATIENT VIEWS
+# 4. DOCTOR VS PATIENT VIEWS
 # ---------------------------------------------------------
 if st.session_state.user_role == "Doctor":
     st.header(t["doc_dashboard"])
 
-    # Doctor patient-switcher dropdown
     selected_p = st.selectbox(
         t["select_patient"],
         list(st.session_state.database.keys()),
@@ -225,162 +228,9 @@ if st.session_state.user_role == "Doctor":
     )
     st.session_state.active_id = selected_p
 
-    # Doctor Table view of all patients
     records = []
     for pid, data in st.session_state.database.items():
         records.append(
             {
                 "Patient ID": pid,
-                "Name": data["name"],
-                "Age": data["age"],
-                "BP (mm Hg)": data["trestbps"],
-                "Cholesterol": data["chol"],
-                "Calculated Risk": (
-                    f"{data['risk']:.1f}%"
-                    if data["risk"] is not None
-                    else "Not Screened"
-                ),
-            }
-        )
-    st.table(pd.DataFrame(records))
-    st.markdown("---")
-
-p_data = st.session_state.database[st.session_state.active_id]
-st.subheader(f"Patient Profile: {p_data['name']} (ID: {st.session_state.active_id})")
-
-# Form Parameters
-col1, col2, col3 = st.columns(3)
-with col1:
-    age = st.number_input("Age", 20, 100, int(p_data["age"]))
-    sex = st.selectbox(
-        "Sex",
-        [0, 1],
-        index=int(p_data["sex"]),
-        format_func=lambda x: "Female" if x == 0 else "Male",
-    )
-    cp = st.selectbox(
-        "Chest Pain Type (0-3)", [0, 1, 2, 3], index=int(p_data["cp"])
-    )
-    trestbps = st.number_input(
-        "Resting BP (mm Hg)", 80, 200, int(p_data["trestbps"])
-    )
-
-with col2:
-    chol = st.number_input(
-        "Cholesterol (mg/dl)", 100, 600, int(p_data["chol"])
-    )
-    fbs = st.selectbox(
-        "Fasting Blood Sugar > 120", [0, 1], index=int(p_data["fbs"])
-    )
-    restecg = st.selectbox(
-        "Resting ECG", [0, 1, 2], index=int(p_data["restecg"])
-    )
-    thalach = st.number_input(
-        "Max Heart Rate", 60, 220, int(p_data["thalach"])
-    )
-
-with col3:
-    exang = st.selectbox(
-        "Exercise Angina", [0, 1], index=int(p_data["exang"])
-    )
-    oldpeak = st.number_input(
-        "ST Depression", 0.0, 6.2, float(p_data["oldpeak"])
-    )
-    slope = st.selectbox("ST Slope", [0, 1, 2], index=int(p_data["slope"]))
-    ca = st.selectbox(
-        "Fluoroscopy Vessels (0-3)", [0, 1, 2, 3], index=int(p_data["ca"])
-    )
-
-feature_names = [
-    "age",
-    "sex",
-    "cp",
-    "trestbps",
-    "chol",
-    "fbs",
-    "restecg",
-    "thalach",
-    "exang",
-    "oldpeak",
-    "slope",
-    "ca",
-]
-input_df = pd.DataFrame(
-    [[age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca]],
-    columns=feature_names,
-)
-
-if st.button(t["run_screening"]):
-    try:
-        model = joblib.load("cardio.plk")
-        booster_features = model.get_booster().feature_names
-        if booster_features:
-            for c in booster_features:
-                if c not in input_df.columns:
-                    input_df[c] = 0
-            input_df = input_df[booster_features]
-
-        risk_prob = model.predict_proba(input_df)[0][1] * 100
-        p_data["risk"] = risk_prob
-
-        if risk_prob > 50:
-            st.error(f"{t['high_risk']} **{risk_prob:.1f}%**")
-        else:
-            st.success(f"{t['low_risk']} **{risk_prob:.1f}%**")
-
-    except Exception as e:
-        st.error(f"Error executing prediction: {e}")
-
-# ---------------------------------------------------------
-# 6. DYNAMIC MULTILINGUAL CONSULTATION BOT
-# ---------------------------------------------------------
-st.markdown("---")
-st.header(t["chat_header"])
-
-for msg in st.session_state.chat_history:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-if prompt := st.chat_input(t["chat_placeholder"]):
-    st.session_state.chat_history.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    risk_val = p_data["risk"] if p_data["risk"] is not None else 0.0
-    q = prompt.lower()
-
-    if lang == "English":
-        if risk_val > 50:
-            reply = f"🚨 **High Risk Analysis ({risk_val:.1f}%):**\n- BP ({trestbps} mmHg) and Cholesterol ({chol} mg/dl) are key drivers.\n- **Action:** Schedule a clinical cardiologist checkup within 48 hours."
-        elif "diet" in q or "food" in q:
-            reply = f"🥗 **Personalized Diet Plan for {p_data['name']}:**\n- Since cholesterol is {chol} mg/dl, restrict saturated fats.\n- Limit sodium intake below 2,000 mg/day for BP control."
-        else:
-            reply = f"✅ **Low Risk Maintenance ({risk_val:.1f}%):** Keep up regular 30-minute daily cardio exercises and routine annual screenings."
-
-    elif lang == "Hindi":
-        if risk_val > 50:
-            reply = f"🚨 **उच्च जोखिम विश्लेषण ({risk_val:.1f}%):**\n- आपका रक्तचाप ({trestbps} mmHg) और कोलेस्ट्रॉल ({chol} mg/dl) मुख्य कारण हैं।\n- **कार्रवाई:** 48 घंटे के भीतर कार्डियोलॉजिस्ट से संपर्क करें।"
-        else:
-            reply = f"✅ **कम जोखिम स्थिति ({risk_val:.1f}%):** रोजाना 30 मिनट व्यायाम करें और संतुलित आहार बनाए रखें।"
-
-    elif lang == "Kannada":
-        if risk_val > 50:
-            reply = f"🚨 **ಹೆಚ್ಚಿನ ಅಪಾಯದ ವಿಶ್ಲೇಷಣೆ ({risk_val:.1f}%):**\n- ನಿಮ್ಮ ರಕ್ತದೊತ್ತಡ ({trestbps} mmHg) ಮತ್ತು ಕೊಲೆಸ್ಟ್ರಾಲ್ ({chol} mg/dl) ಪ್ರಮುಖ ಕಾರಣಗಳಾಗಿವೆ.\n- **ಸಲಹೆ:** 48 ಗಂಟೆಗಳ ಒಳಗೆ ಹೃದ್ರೋಗ ತಜ್ಞರನ್ನು ಸಂಪರ್ಕಿಸಿ."
-        else:
-            reply = f"✅ **ಕಡಿಮೆ ಅಪಾಯದ ಸ್ಥಿತಿ ({risk_val:.1f}%):** ಪ್ರತಿದಿನ 30 ನಿಮಿಷಗಳ ಕಾಲ ವ್ಯಾಯಾಮ ಮಾಡಿ."
-
-    elif lang == "Telugu":
-        if risk_val > 50:
-            reply = f"🚨 **అధిక రిస్క్ విశ్లేషణ ({risk_val:.1f}%):**\n- మీ బీపీ ({trestbps} mmHg) మరియు కొలెస్ట్రాల్ ({chol} mg/dl) ప్రధాన కారణాలు.\n- **చర్య:** 48 గంటల్లో కార్డియాలజిస్ట్‌ను సంప్రదించండి."
-        else:
-            reply = f"✅ **తక్కువ రిస్క్ పరిస్థితి ({risk_val:.1f}%):** ప్రతిరోజూ 30 నిమిషాలు వ్యాయామం చేయండి."
-
-    elif lang == "Tamil":
-        if risk_val > 50:
-            reply = f"🚨 **அதிக அபாய பகுப்பாய்வு ({risk_val:.1f}%):**\n- உங்கள் ரத்த அழுத்தம் ({trestbps} mmHg) மற்றும் கொலஸ்ட்ரால் ({chol} mg/dl) முக்கிய காரணங்கள்.\n- **நடவடிக்கை:** 48 மணி நேரத்திற்குள் மருத்துவரை அணுகவும்."
-        else:
-            reply = f"✅ **குறைந்த அபாய நிலை ({risk_val:.1f}%):** தினமும் 30 நிமிடங்கள் உடற்பயிற்சி செய்யுங்கள்."
-
-    st.session_state.chat_history.append({"role": "assistant", "content": reply})
-    with st.chat_message("assistant"):
-        st.markdown(reply)
+                "Name
