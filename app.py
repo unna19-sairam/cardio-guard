@@ -1,5 +1,5 @@
 import os
-from google import genai
+import google.generativeai as genai
 import joblib
 import pandas as pd
 import streamlit as st
@@ -7,18 +7,42 @@ import streamlit as st
 st.set_page_config(page_title="CardioGuard", page_icon="🫀", layout="wide")
 
 # ---------------------------------------------------------
-# 1. LLM ENGINE SETUP (MODERN GOOGLE-GENAI SDK)
+# 1. DYNAMIC LLM ENGINE SETUP (GEMINI API)
 # ---------------------------------------------------------
 API_KEY = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
+llm_model = None
 if API_KEY:
     try:
-        # Initialize modern client
-        llm_client = genai.Client(api_key=API_KEY)
-    except Exception:
-        llm_client = None
-else:
-    llm_client = None
+        genai.configure(api_key=API_KEY)
+        
+        # Dynamically discover active models supporting generateContent
+        available_models = [
+            m.name for m in genai.list_models() 
+            if 'generateContent' in m.supported_generation_methods
+        ]
+        
+        # Priority order for selecting the best active model
+        preferred_models = [
+            "models/gemini-2.5-flash",
+            "models/gemini-1.5-flash",
+            "models/gemini-2.0-flash",
+            "models/gemini-pro"
+        ]
+        
+        selected_model_name = None
+        for p in preferred_models:
+            if p in available_models:
+                selected_model_name = p
+                break
+                
+        if not selected_model_name and available_models:
+            selected_model_name = available_models[0]
+            
+        if selected_model_name:
+            llm_model = genai.GenerativeModel(selected_model_name)
+    except Exception as e:
+        st.sidebar.warning(f"Gemini API initialization warning: {e}")
 
 # ---------------------------------------------------------
 # 2. MULTILINGUAL UI DICTIONARY
@@ -156,7 +180,7 @@ if "active_id" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Language Selection
+# Sidebar Language Selection
 st.sidebar.title("🌐 Language / भाषा")
 lang = st.sidebar.selectbox(
     "Choose Language:", ["English", "Hindi", "Kannada", "Telugu", "Tamil"]
@@ -299,117 +323,4 @@ with col3:
     )
     slope = st.selectbox("ST Slope", [0, 1, 2], index=int(p_data["slope"]))
     ca = st.selectbox(
-        "Fluoroscopy Vessels (0-3)", [0, 1, 2, 3], index=int(p_data["ca"])
-    )
-
-feature_names = [
-    "age",
-    "sex",
-    "cp",
-    "trestbps",
-    "chol",
-    "fbs",
-    "restecg",
-    "thalach",
-    "exang",
-    "oldpeak",
-    "slope",
-    "ca",
-]
-input_df = pd.DataFrame(
-    [[age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca]],
-    columns=feature_names,
-)
-
-if st.button(t["run_screening"]):
-    try:
-        model = joblib.load("cardio.plk")
-        booster_features = model.get_booster().feature_names
-        if booster_features:
-            for c in booster_features:
-                if c not in input_df.columns:
-                    input_df[c] = 0
-            input_df = input_df[booster_features]
-
-        risk_prob = model.predict_proba(input_df)[0][1] * 100
-        p_data["risk"] = risk_prob
-
-        if risk_prob > 50:
-            st.error(f"{t['high_risk']} **{risk_prob:.1f}%**")
-        else:
-            st.success(f"{t['low_risk']} **{risk_prob:.1f}%**")
-
-    except Exception as e:
-        st.error(f"Error running diagnostic model: {e}")
-
-# ---------------------------------------------------------
-# 6. DYNAMIC LLM-POWERED CHATBOT
-# ---------------------------------------------------------
-st.markdown("---")
-st.header(t["chat_header"])
-
-for msg in st.session_state.chat_history:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-if prompt := st.chat_input(t["chat_placeholder"]):
-    st.session_state.chat_history.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    risk_val = (
-        f"{p_data['risk']:.1f}%" if p_data["risk"] is not None else "Not Screened"
-    )
-
-    system_instructions = f"""
-    You are an expert AI Cardiac Assistant inside CardioGuard platform.
-    
-    PATIENT PROFILE:
-    - Name: {p_data['name']}
-    - Age: {age}, Sex: {'Male' if sex==1 else 'Female'}
-    - BP: {trestbps} mm Hg
-    - Cholesterol: {chol} mg/dl
-    - Fasting Sugar > 120: {'Yes' if fbs==1 else 'No'}
-    - Max Heart Rate: {thalach} bpm
-    - ST Depression: {oldpeak}
-    - Calculated Risk Score: {risk_val}
-    
-    INSTRUCTIONS:
-    1. Respond STRICTLY in language: {lang}.
-    2. Format using clear Markdown formatting (bullet points, bold highlights).
-    3. Refer directly to patient metrics when applicable.
-    """
-
-    full_prompt = f"{system_instructions}\n\nUSER QUESTION: {prompt}"
-
-    with st.chat_message("assistant"):
-        with st.spinner("Analyzing patient clinical metrics..."):
-            if llm_client:
-                # Attempt primary recommended model, fallback to 1.5 if needed
-                models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
-                reply = None
-                
-                for m_name in models_to_try:
-                    try:
-                        res = llm_client.models.generate_content(
-                            model=m_name,
-                            contents=full_prompt,
-                        )
-                        reply = res.text
-                        break
-                    except Exception:
-                        continue
-
-                if not reply:
-                    reply = "⚠️ Error communicating with Gemini API. Please check your API key permissions."
-            else:
-                reply = (
-                    f"**[Demo Mode — Add GEMINI_API_KEY to Secrets]**\n\n"
-                    f"Summary for {p_data['name']}:\n"
-                    f"- BP: {trestbps} mm Hg | Cholesterol: {chol} mg/dl | Risk: {risk_val}"
-                )
-
-            st.markdown(reply)
-            st.session_state.chat_history.append(
-                {"role": "assistant", "content": reply}
-            )
+        "Fluoroscopy Vessels (0-3)", [0, 1, 2, 3], index=int(
