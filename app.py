@@ -228,9 +228,21 @@ if st.session_state.user_role == "Doctor":
     )
     st.session_state.active_id = selected_p
 
-    records = []
-    for pid, data in st.session_state.database.items():
-        records.append(
-            {
-                "Patient ID": pid,
-                "Name
+    # ✅ CORRECTED CODE
+records = []
+for pid, data in st.session_state.database.items():
+    records.append(
+        {
+            "Patient ID": pid,
+            "Name": data["name"],
+            "Age": data["age"],
+            "BP (mm Hg)": data["trestbps"],
+            "Cholesterol": data["chol"],
+            "Calculated Risk": (
+                f"{data['risk']:.1f}%"
+                if data["risk"] is not None
+                else "Not Screened"
+            ),
+        }
+    )
+st.table(pd.DataFrame(records))
