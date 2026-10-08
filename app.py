@@ -323,4 +323,105 @@ with col3:
     )
     slope = st.selectbox("ST Slope", [0, 1, 2], index=int(p_data["slope"]))
     ca = st.selectbox(
-        "Fluoroscopy Vessels (0-3)", [0, 1, 2, 3], index=int(
+        "Fluoroscopy Vessels (0-3)", [0, 1, 2, 3], index=int(p_data["ca"])
+    )
+
+feature_names = [
+    "age",
+    "sex",
+    "cp",
+    "trestbps",
+    "chol",
+    "fbs",
+    "restecg",
+    "thalach",
+    "exang",
+    "oldpeak",
+    "slope",
+    "ca",
+]
+input_df = pd.DataFrame(
+    [[age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca]],
+    columns=feature_names,
+)
+
+if st.button(t["run_screening"]):
+    try:
+        model = joblib.load("cardio.plk")
+        booster_features = model.get_booster().feature_names
+        if booster_features:
+            for c in booster_features:
+                if c not in input_df.columns:
+                    input_df[c] = 0
+            input_df = input_df[booster_features]
+
+        risk_prob = model.predict_proba(input_df)[0][1] * 100
+        p_data["risk"] = risk_prob
+
+        if risk_prob > 50:
+            st.error(f"{t['high_risk']} **{risk_prob:.1f}%**")
+        else:
+            st.success(f"{t['low_risk']} **{risk_prob:.1f}%**")
+
+    except Exception as e:
+        st.error(f"Error running diagnostic model: {e}")
+
+# ---------------------------------------------------------
+# 6. DYNAMIC LLM-POWERED CHATBOT
+# ---------------------------------------------------------
+st.markdown("---")
+st.header(t["chat_header"])
+
+for msg in st.session_state.chat_history:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+if prompt := st.chat_input(t["chat_placeholder"]):
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    risk_val = (
+        f"{p_data['risk']:.1f}%" if p_data["risk"] is not None else "Not Screened"
+    )
+
+    system_instructions = f"""
+    You are an expert AI Cardiac Clinical Assistant inside CardioGuard platform.
+    
+    PATIENT PROFILE:
+    - Name: {p_data['name']}
+    - Age: {age}, Sex: {'Male' if sex==1 else 'Female'}
+    - BP: {trestbps} mm Hg
+    - Cholesterol: {chol} mg/dl
+    - Fasting Sugar > 120: {'Yes' if fbs==1 else 'No'}
+    - Max Heart Rate: {thalach} bpm
+    - ST Depression: {oldpeak}
+    - Calculated Risk Score: {risk_val}
+    
+    INSTRUCTIONS:
+    1. Respond STRICTLY in language: {lang}.
+    2. Format using clear Markdown formatting (bullet points, bold highlights).
+    3. Refer directly to patient metrics when applicable.
+    """
+
+    full_prompt = f"{system_instructions}\n\nUSER QUESTION: {prompt}"
+
+    with st.chat_message("assistant"):
+        with st.spinner("Analyzing patient clinical metrics..."):
+            if llm_model:
+                try:
+                    res = llm_model.generate_content(full_prompt)
+                    reply = res.text
+                except Exception as err:
+                    reply = f"⚠️ API Error ({type(err).__name__}): {str(err)}"
+            else:
+                reply = (
+                    f"**[Demo Mode — Add GEMINI_API_KEY to Secrets]**\n\n"
+                    f"Summary for {p_data['name']}:\n"
+                    f"- BP: {trestbps} mm Hg | Cholesterol: {chol} mg/dl | Risk: {risk_val}"
+                )
+
+            st.markdown(reply)
+            st.session_state.chat_history.append(
+                {"role": "assistant", "content": reply}
+            )
