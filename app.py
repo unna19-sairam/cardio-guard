@@ -7,7 +7,7 @@ import streamlit as st
 st.set_page_config(page_title="CardioGuard", page_icon="🫀", layout="wide")
 
 # ---------------------------------------------------------
-# 1. LLM ENGINE SETUP (GOOGLE GEMINI)
+# 1. GEMINI LLM INITIALIZATION
 # ---------------------------------------------------------
 API_KEY = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
@@ -16,8 +16,9 @@ if API_KEY:
     llm_model = genai.GenerativeModel("gemini-2.5-flash")
 else:
     llm_model = None
+
 # ---------------------------------------------------------
-# 1. MULTILINGUAL DICTIONARY
+# 2. MULTILINGUAL UI DICTIONARY
 # ---------------------------------------------------------
 TRANSLATIONS = {
     "English": {
@@ -33,8 +34,8 @@ TRANSLATIONS = {
         "low_risk": "✅ Low Heart Attack Risk Detected:",
         "doc_dashboard": "👨‍⚕️ Doctor Clinical Dashboard",
         "select_patient": "Select Patient to Review:",
-        "chat_header": "💬 LLM Cardiac Consultation Assistant",
-        "chat_placeholder": "Ask anything about risk, diet, medications, or health steps...",
+        "chat_header": "💬 Interactive AI Clinical Assistant",
+        "chat_placeholder": "Ask about cardiac risk factors, dietary plans, or lifestyle modifications...",
     },
     "Hindi": {
         "title": "🫀 कार्डियोगार्ड: बहु-भूमिका कार्डियक प्लेटफॉर्म",
@@ -49,8 +50,8 @@ TRANSLATIONS = {
         "low_risk": "✅ हृदयघात का कम जोखिम पाया गया:",
         "doc_dashboard": "👨‍⚕️ डॉक्टर क्लिनिकल डैशबोर्ड",
         "select_patient": "समीक्षा के लिए मरीज़ चुनें:",
-        "chat_header": "💬 एलएलएम हृदय परामर्श सहायक",
-        "chat_placeholder": "अपने जोखिम, आहार, दवाओं या स्वास्थ्य कदमों के बारे में पूछें...",
+        "chat_header": "💬 एआई कार्डियक कंसल्टेंट (AI असिस्टेंट)",
+        "chat_placeholder": "अपने दिल के स्वास्थ्य, आहार या सलाह के बारे में पूछें...",
     },
     "Kannada": {
         "title": "🫀 ಕಾರ್ಡಿಯೋಗಾರ್ಡ್: ಮಲ್ಟಿ-ರೋಲ್ ಕಾರ್ಡಿಯಾಕ್ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್",
@@ -61,12 +62,12 @@ TRANSLATIONS = {
         "role_patient": "ರೋಗಿ",
         "role_doctor": "ವೈದ್ಯರು",
         "run_screening": "ರೋಗನಿರ್ಣಯ ಪರೀಕ್ಷೆಯನ್ನು ಚಾಲನೆ ಮಾಡಿ",
-        "high_risk": "⚠️ ಹೆಚ್ಚಿನ ಹೃದಯಾಘಾತದ ಅಪಾಯ ಕಂಡುಬಂದಿದೆ:",
-        "low_risk": "✅ ಕಡಿಮೆ ಹೃದಯಾಘಾತದ ಅಪಾಯ ಕಂಡುಬಂದಿದೆ:",
+        "high_risk": "⚠️ ಹೆಚ್ಚಿನ ಅಪಾಯ ಕಂಡುಬಂದಿದೆ:",
+        "low_risk": "✅ ಕಡಿಮೆ ಅಪಾಯ ಕಂಡುಬಂದಿದೆ:",
         "doc_dashboard": "👨‍⚕️ ವೈದ್ಯಕೀಯ ಕ್ಲಿನಿಕಲ್ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
-        "select_patient": "ಪರಿಶೀಲಿಸಲು ರೋಗಿಯನ್ನು ಆಯ್ಕೆಮಾಡಿ:",
-        "chat_header": "💬 AI ಸಂವಾದಾತ್ಮಕ ವೈದ್ಯಕೀಯ ಸಮಾಲೋಚನೆ ಸಹಾಯಕ",
-        "chat_placeholder": "ನಿಮ್ಮ ಅಪಾಯ, ಆಹಾರ ಪದ್ಧತಿಯ ಬಗ್ಗೆ ಕೇಳಿ...",
+        "select_patient": "ಸಮೀಕ್ಷೆಗೆ ರೋಗಿಯನ್ನು ಆಯ್ಕೆಮಾಡಿ:",
+        "chat_header": "💬 AI ಕಾರ್ಡಿಯಾಕ್ ಸಲಹೆಗಾರ",
+        "chat_placeholder": "ನಿಮ್ಮ ಆರೋಗ್ಯ, ಆಹಾರದ ಬಗ್ಗೆ ಕೇಳಿ...",
     },
     "Telugu": {
         "title": "🫀 కార్డియోగార్డ్: మల్టీ-రోల్ కార్డియాక్ ప్లాట్‌ఫారమ్",
@@ -81,8 +82,8 @@ TRANSLATIONS = {
         "low_risk": "✅ గుండెపోటు వచ్చే ప్రమాదం తక్కువగా ఉంది:",
         "doc_dashboard": "👨‍⚕️ డాక్టర్ క్లినికల్ డాష్‌బోర్డ్",
         "select_patient": "పరిశీలించడానికి పేషెంట్‌ను ఎంచుకోండి:",
-        "chat_header": "💬 ఏఐ కార్డియాక్ కన్సల్టేషన్ అసిస్టెంట్",
-        "chat_placeholder": "మీ ప్రమాదం, ఆహారం గురించి అడగండి...",
+        "chat_header": "💬 ఏఐ కార్డియాక్ కన్సల్టెంట్",
+        "chat_placeholder": "మీ ఆరోగ్య, ఆహార సమస్యలను అడగండి...",
     },
     "Tamil": {
         "title": "🫀 கார்டியோகார்ட்: மல்டி-ரோல் கார்டியாக் தளம்",
@@ -93,17 +94,17 @@ TRANSLATIONS = {
         "role_patient": "நோயாளி",
         "role_doctor": "மருத்துவர்",
         "run_screening": "பரிசோதனையை இயக்கவும்",
-        "high_risk": "⚠️ மாரடைப்பு ஏற்படும் அபாயம் அதிகம்:",
-        "low_risk": "✅ மாரடைப்பு ஏற்படும் அபாயம் குறைவு:",
+        "high_risk": "⚠️ அபாயம் அதிகம்:",
+        "low_risk": "✅ அபாயம் குறைவு:",
         "doc_dashboard": "👨‍⚕️ மருத்துவர் மருத்துவ டாஷ்போர்டு",
-        "select_patient": "பரிசீலிக்க நோயாளியைத் தேர்ந்தெடுக்கவும்:",
-        "chat_header": "💬 AI கார்டியாக் ஆலோசனைக் உதவியாளர்",
-        "chat_placeholder": "உங்கள் அபாயம், உணவு குறித்து கேட்கவும்...",
+        "select_patient": "நோயாளியைத் தேர்ந்தெடுக்கவும்:",
+        "chat_header": "💬 ஏஐ இதய ஆலோசனைக் உதவியாளர்",
+        "chat_placeholder": "உங்கள் ஆரோக்கியம் குறித்து கேட்கவும்...",
     },
 }
 
 # ---------------------------------------------------------
-# 2. SESSION STATE & DATABASE SETUP
+# 3. SESSION STATE & PATIENT DATABASE
 # ---------------------------------------------------------
 if "database" not in st.session_state:
     st.session_state.database = {
@@ -152,7 +153,7 @@ if "active_id" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Sidebar Language Selection
+# Sidebar Language Selector
 st.sidebar.title("🌐 Language / भाषा")
 lang = st.sidebar.selectbox(
     "Choose Language:", ["English", "Hindi", "Kannada", "Telugu", "Tamil"]
@@ -160,7 +161,7 @@ lang = st.sidebar.selectbox(
 t = TRANSLATIONS[lang]
 
 # ---------------------------------------------------------
-# 3. LOGIN PAGE
+# 4. AUTHENTICATION MODULE
 # ---------------------------------------------------------
 if not st.session_state.authenticated:
     st.title(t["login_header"])
@@ -201,7 +202,7 @@ if not st.session_state.authenticated:
 
     st.stop()
 
-# Logout Sidebar
+# Sidebar Logout
 st.sidebar.markdown(f"**Role:** {t['role_' + st.session_state.user_role.lower()]}")
 if st.sidebar.button(t["logout"]):
     st.session_state.authenticated = False
@@ -212,7 +213,7 @@ if st.sidebar.button(t["logout"]):
 
 st.title(t["title"])
 
-# Safety Check for Active Patient ID
+# State Safety Check
 if (
     st.session_state.active_id is None
     or st.session_state.active_id not in st.session_state.database
@@ -220,7 +221,7 @@ if (
     st.session_state.active_id = list(st.session_state.database.keys())[0]
 
 # ---------------------------------------------------------
-# 4. DOCTOR VS PATIENT VIEWS
+# 5. CLINICAL DASHBOARDS
 # ---------------------------------------------------------
 if st.session_state.user_role == "Doctor":
     st.header(t["doc_dashboard"])
@@ -234,21 +235,166 @@ if st.session_state.user_role == "Doctor":
     )
     st.session_state.active_id = selected_p
 
-    # ✅ CORRECTED CODE
-records = []
-for pid, data in st.session_state.database.items():
-    records.append(
-        {
-            "Patient ID": pid,
-            "Name": data["name"],
-            "Age": data["age"],
-            "BP (mm Hg)": data["trestbps"],
-            "Cholesterol": data["chol"],
-            "Calculated Risk": (
-                f"{data['risk']:.1f}%"
-                if data["risk"] is not None
-                else "Not Screened"
-            ),
-        }
+    records = []
+    for pid, data in st.session_state.database.items():
+        records.append(
+            {
+                "Patient ID": pid,
+                "Name": data["name"],
+                "Age": data["age"],
+                "BP (mm Hg)": data["trestbps"],
+                "Cholesterol": data["chol"],
+                "Calculated Risk": (
+                    f"{data['risk']:.1f}%"
+                    if data["risk"] is not None
+                    else "Not Screened"
+                ),
+            }
+        )
+    st.table(pd.DataFrame(records))
+    st.markdown("---")
+
+p_data = st.session_state.database[st.session_state.active_id]
+st.subheader(f"Patient Profile: {p_data['name']} (ID: {st.session_state.active_id})")
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    age = st.number_input("Age", 20, 100, int(p_data["age"]))
+    sex = st.selectbox(
+        "Sex",
+        [0, 1],
+        index=int(p_data["sex"]),
+        format_func=lambda x: "Female" if x == 0 else "Male",
     )
-st.table(pd.DataFrame(records))
+    cp = st.selectbox(
+        "Chest Pain Type (0-3)", [0, 1, 2, 3], index=int(p_data["cp"])
+    )
+    trestbps = st.number_input(
+        "Resting BP (mm Hg)", 80, 200, int(p_data["trestbps"])
+    )
+
+with col2:
+    chol = st.number_input(
+        "Cholesterol (mg/dl)", 100, 600, int(p_data["chol"])
+    )
+    fbs = st.selectbox(
+        "Fasting Blood Sugar > 120", [0, 1], index=int(p_data["fbs"])
+    )
+    restecg = st.selectbox(
+        "Resting ECG", [0, 1, 2], index=int(p_data["restecg"])
+    )
+    thalach = st.number_input(
+        "Max Heart Rate", 60, 220, int(p_data["thalach"])
+    )
+
+with col3:
+    exang = st.selectbox(
+        "Exercise Angina", [0, 1], index=int(p_data["exang"])
+    )
+    oldpeak = st.number_input(
+        "ST Depression", 0.0, 6.2, float(p_data["oldpeak"])
+    )
+    slope = st.selectbox("ST Slope", [0, 1, 2], index=int(p_data["slope"]))
+    ca = st.selectbox(
+        "Fluoroscopy Vessels (0-3)", [0, 1, 2, 3], index=int(p_data["ca"])
+    )
+
+feature_names = [
+    "age",
+    "sex",
+    "cp",
+    "trestbps",
+    "chol",
+    "fbs",
+    "restecg",
+    "thalach",
+    "exang",
+    "oldpeak",
+    "slope",
+    "ca",
+]
+input_df = pd.DataFrame(
+    [[age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca]],
+    columns=feature_names,
+)
+
+if st.button(t["run_screening"]):
+    try:
+        model = joblib.load("cardio.plk")
+        booster_features = model.get_booster().feature_names
+        if booster_features:
+            for c in booster_features:
+                if c not in input_df.columns:
+                    input_df[c] = 0
+            input_df = input_df[booster_features]
+
+        risk_prob = model.predict_proba(input_df)[0][1] * 100
+        p_data["risk"] = risk_prob
+
+        if risk_prob > 50:
+            st.error(f"{t['high_risk']} **{risk_prob:.1f}%**")
+        else:
+            st.success(f"{t['low_risk']} **{risk_prob:.1f}%**")
+
+    except Exception as e:
+        st.error(f"Error running diagnostic model: {e}")
+
+# ---------------------------------------------------------
+# 6. DYNAMIC LLM-POWERED CHATBOT
+# ---------------------------------------------------------
+st.markdown("---")
+st.header(t["chat_header"])
+
+for msg in st.session_state.chat_history:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+if prompt := st.chat_input(t["chat_placeholder"]):
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    risk_val = (
+        f"{p_data['risk']:.1f}%" if p_data["risk"] is not None else "Not Screened"
+    )
+
+    system_instructions = f"""
+    You are an expert AI Cardiac Assistant for CardioGuard digital health platform.
+    
+    PATIENT PROFILE:
+    - Name: {p_data['name']}
+    - Age: {age}, Sex: {'Male' if sex==1 else 'Female'}
+    - BP: {trestbps} mm Hg
+    - Cholesterol: {chol} mg/dl
+    - Fasting Sugar > 120: {'Yes' if fbs==1 else 'No'}
+    - Max Heart Rate: {thalach} bpm
+    - ST Depression: {oldpeak}
+    - Calculated Risk: {risk_val}
+    
+    INSTRUCTIONS:
+    1. Respond STRICTLY in language: {lang}.
+    2. Format using clear Markdown formatting (bullet points, bold highlights).
+    3. Refer directly to patient metrics when applicable.
+    """
+
+    full_prompt = f"{system_instructions}\n\nUSER QUESTION: {prompt}"
+
+    with st.chat_message("assistant"):
+        with st.spinner("Analyzing patient clinical metrics..."):
+            if llm_model:
+                try:
+                    response = llm_model.generate_content(full_prompt)
+                    reply = response.text
+                except Exception as err:
+                    reply = f"⚠️ LLM Error: {str(err)}"
+            else:
+                reply = (
+                    f"**[Demo Mode — Add GEMINI_API_KEY to Secrets]**\n\n"
+                    f"Summary for {p_data['name']}:\n"
+                    f"- BP: {trestbps} mm Hg | Cholesterol: {chol} mg/dl | Risk: {risk_val}"
+                )
+
+            st.markdown(reply)
+            st.session_state.chat_history.append(
+                {"role": "assistant", "content": reply}
+            )
