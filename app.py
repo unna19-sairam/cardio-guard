@@ -13,7 +13,7 @@ API_KEY = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
 if API_KEY:
     genai.configure(api_key=API_KEY)
-    llm_model = genai.GenerativeModel("gemini-2.5-flash")
+    llm_model = genai.GenerativeModel("gemini-1.5-flash")
 else:
     llm_model = None
 
