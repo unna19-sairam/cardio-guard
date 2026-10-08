@@ -6,11 +6,16 @@ import streamlit as st
 
 st.set_page_config(page_title="CardioGuard", page_icon="🫀", layout="wide")
 
-# Initialize OpenAI client using Streamlit Secrets or environment variable
-client = None
-if "OPENAI_API_KEY" in st.secrets:
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# ---------------------------------------------------------
+# 1. LLM ENGINE SETUP (GOOGLE GEMINI)
+# ---------------------------------------------------------
+API_KEY = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
+if API_KEY:
+    genai.configure(api_key=API_KEY)
+    llm_model = genai.GenerativeModel("gemini-2.5-flash")
+else:
+    llm_model = None
 # ---------------------------------------------------------
 # 1. MULTILINGUAL DICTIONARY
 # ---------------------------------------------------------
