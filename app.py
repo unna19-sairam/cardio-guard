@@ -2,9 +2,7 @@ import joblib
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(
-    page_title="CardioGuard", page_icon="🫀", layout="wide"
-)
+st.set_page_config(page_title="CardioGuard", page_icon="🫀", layout="wide")
 
 # ---------------------------------------------------------
 # 1. MULTILINGUAL DICTIONARY
@@ -13,7 +11,6 @@ TRANSLATIONS = {
     "English": {
         "title": "🫀 CardioGuard: Multi-Role Cardiac Platform",
         "login_header": "CardioGuard Portal Login",
-        "select_lang": "Select Language",
         "patient_login": "Patient Login",
         "doctor_login": "Doctor Login",
         "logout": "Logout",
@@ -24,15 +21,12 @@ TRANSLATIONS = {
         "low_risk": "✅ Low Heart Attack Risk Detected:",
         "doc_dashboard": "👨‍⚕️ Doctor Clinical Dashboard",
         "select_patient": "Select Patient to Review:",
-        "patient_records": "All Patient Records",
         "chat_header": "💬 Interactive Cardiac Consultation Assistant",
         "chat_placeholder": "Ask about your risk, diet, or clinical next steps...",
-        "risk_summary": "Patient Risk Analysis:",
     },
     "Hindi": {
         "title": "🫀 कार्डियोगार्ड: बहु-भूमिका कार्डियक प्लेटफॉर्म",
         "login_header": "कार्डियोगार्ड पोर्टल लॉगिन",
-        "select_lang": "भाषा चुनें",
         "patient_login": "मरीज़ लॉगिन",
         "doctor_login": "डॉक्टर लॉगिन",
         "logout": "लॉग आउट",
@@ -43,15 +37,12 @@ TRANSLATIONS = {
         "low_risk": "✅ हृदयघात का कम जोखिम पाया गया:",
         "doc_dashboard": "👨‍⚕️ डॉक्टर क्लिनिकल डैशबोर्ड",
         "select_patient": "समीक्षा के लिए मरीज़ चुनें:",
-        "patient_records": "सभी मरीजों के रिकॉर्ड",
         "chat_header": "💬 इंटरएक्टिव हृदय परामर्श सहायक",
         "chat_placeholder": "अपने जोखिम, आहार या अगले चरणों के बारे में पूछें...",
-        "risk_summary": "मरीज़ के जोखिम का विश्लेषण:",
     },
     "Kannada": {
         "title": "🫀 ಕಾರ್ಡಿಯೋಗಾರ್ಡ್: ಮಲ್ಟಿ-ರೋಲ್ ಕಾರ್ಡಿಯಾಕ್ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್",
         "login_header": "ಕಾರ್ಡಿಯೋಗಾರ್ಡ್ ಪೋರ್ಟಲ್ ಲಾಗಿನ್",
-        "select_lang": "ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ",
         "patient_login": "ರೋಗಿಯ ಲಾಗಿನ್",
         "doctor_login": "ವೈದ್ಯರ ಲಾಗಿನ್",
         "logout": "ಲಾಗ್‌ಔಟ್",
@@ -62,15 +53,12 @@ TRANSLATIONS = {
         "low_risk": "✅ ಕಡಿಮೆ ಹೃದಯಾಘಾತದ ಅಪಾಯ ಕಂಡುಬಂದಿದೆ:",
         "doc_dashboard": "👨‍⚕️ ವೈದ್ಯಕೀಯ ಕ್ಲಿನಿಕಲ್ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
         "select_patient": "ಪರಿಶೀಲಿಸಲು ರೋಗಿಯನ್ನು ಆಯ್ಕೆಮಾಡಿ:",
-        "patient_records": "ಎಲ್ಲಾ ರೋಗಿಗಳ ದಾಖಲೆಗಳು",
         "chat_header": "💬 ಸಂವಾದಾತ್ಮಕ ಹೃದಯ ಸಮಾಲೋಚನೆ ಸಹಾಯಕ",
         "chat_placeholder": "ನಿಮ್ಮ ಅಪಾಯ, ಆಹಾರ ಪದ್ಧತಿಯ ಬಗ್ಗೆ ಕೇಳಿ...",
-        "risk_summary": "ರೋಗಿಯ ಅಪಾಯದ ವಿಶ್ಲೇಷಣೆ:",
     },
     "Telugu": {
         "title": "🫀 కార్డియోగార్డ్: మల్టీ-రోల్ కార్డియాక్ ప్లాట్‌ఫారమ్",
         "login_header": "కార్డియోగార్డ్ పోర్టల్ లాగిన్",
-        "select_lang": "భాషను ఎంచుకోండి",
         "patient_login": "పేషెంట్ లాగిన్",
         "doctor_login": "డాక్టర్ లాగిన్",
         "logout": "లాగౌట్",
@@ -81,15 +69,12 @@ TRANSLATIONS = {
         "low_risk": "✅ గుండెపోటు వచ్చే ప్రమాదం తక్కువగా ఉంది:",
         "doc_dashboard": "👨‍⚕️ డాక్టర్ క్లినికల్ డాష్‌బోర్డ్",
         "select_patient": "పరిశీలించడానికి పేషెంట్‌ను ఎంచుకోండి:",
-        "patient_records": "అన్ని పేషెంట్ రికార్డులు",
         "chat_header": "💬 ఇంటరాక్టివ్ కార్డియాక్ కన్సల్టేషన్ అసిస్టెంట్",
         "chat_placeholder": "మీ ప్రమాదం, ఆహారం గురించి అడగండి...",
-        "risk_summary": "పేషెంట్ రిస్క్ విశ్లేషణ:",
     },
     "Tamil": {
         "title": "🫀 கார்டியோகார்ட்: மல்டி-ரோல் கார்டியாக் தளம்",
         "login_header": "கார்டியோகார்ட் போர்ட்டல் உள்நுழைவு",
-        "select_lang": "மொழியைத் தேர்ந்தெடுக்கவும்",
         "patient_login": "நோயாளி உள்நுழைவு",
         "doctor_login": "மருத்துவர் உள்நுழைவு",
         "logout": "வெளியேறு",
@@ -100,15 +85,13 @@ TRANSLATIONS = {
         "low_risk": "✅ மாரடைப்பு ஏற்படும் அபாயம் குறைவு:",
         "doc_dashboard": "👨‍⚕️ மருத்துவர் மருத்துவ டாஷ்போர்டு",
         "select_patient": "பரிசீலிக்க நோயாளியைத் தேர்ந்தெடுக்கவும்:",
-        "patient_records": "அனைத்து நோயாளி பதிவுகள்",
         "chat_header": "💬 கார்டியாக் ஆலோசனைக் உதவியாளர்",
         "chat_placeholder": "உங்கள் அபாயம், உணவு குறித்து கேட்கவும்...",
-        "risk_summary": "நோயாளி அபாய பகுப்பாய்வு:",
     },
 }
 
 # ---------------------------------------------------------
-# 2. MOCK PATIENT DATABASE
+# 2. SESSION STATE & DATABASE SETUP
 # ---------------------------------------------------------
 if "database" not in st.session_state:
     st.session_state.database = {
@@ -153,7 +136,7 @@ if "authenticated" not in st.session_state:
 if "user_role" not in st.session_state:
     st.session_state.user_role = None
 if "active_id" not in st.session_state:
-    st.session_state.active_id = None
+    st.session_state.active_id = "P101"  # Safe default fallback
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
@@ -211,21 +194,34 @@ st.sidebar.markdown(f"**Role:** {t['role_' + st.session_state.user_role.lower()]
 if st.sidebar.button(t["logout"]):
     st.session_state.authenticated = False
     st.session_state.user_role = None
-    st.session_state.active_id = None
+    st.session_state.active_id = "P101"
     st.session_state.chat_history = []
     st.rerun()
 
 st.title(t["title"])
 
 # ---------------------------------------------------------
-# 4. DOCTOR VS PATIENT VIEWS
+# 4. SAFETY CHECK FOR ACTIVE_ID (FIXES KEYERROR)
+# ---------------------------------------------------------
+if (
+    st.session_state.active_id is None
+    or st.session_state.active_id not in st.session_state.database
+):
+    st.session_state.active_id = list(st.session_state.database.keys())[0]
+
+# ---------------------------------------------------------
+# 5. DOCTOR VS PATIENT VIEWS
 # ---------------------------------------------------------
 if st.session_state.user_role == "Doctor":
     st.header(t["doc_dashboard"])
 
     # Doctor patient-switcher dropdown
     selected_p = st.selectbox(
-        t["select_patient"], list(st.session_state.database.keys())
+        t["select_patient"],
+        list(st.session_state.database.keys()),
+        index=list(st.session_state.database.keys()).index(
+            st.session_state.active_id
+        ),
     )
     st.session_state.active_id = selected_p
 
@@ -336,7 +332,7 @@ if st.button(t["run_screening"]):
         st.error(f"Error executing prediction: {e}")
 
 # ---------------------------------------------------------
-# 5. DYNAMIC MULTILINGUAL CONSULTATION BOT
+# 6. DYNAMIC MULTILINGUAL CONSULTATION BOT
 # ---------------------------------------------------------
 st.markdown("---")
 st.header(t["chat_header"])
@@ -350,7 +346,6 @@ if prompt := st.chat_input(t["chat_placeholder"]):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Dynamic Analysis based on specific patient metrics
     risk_val = p_data["risk"] if p_data["risk"] is not None else 0.0
     q = prompt.lower()
 
