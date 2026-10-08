@@ -1,7 +1,8 @@
+import os
+import google.generativeai as genai
 import joblib
 import pandas as pd
 import streamlit as st
-from openai import OpenAI
 
 st.set_page_config(page_title="CardioGuard", page_icon="🫀", layout="wide")
 
