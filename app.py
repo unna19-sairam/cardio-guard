@@ -7,13 +7,20 @@ import streamlit as st
 st.set_page_config(page_title="CardioGuard", page_icon="🫀", layout="wide")
 
 # ---------------------------------------------------------
-# 1. GEMINI LLM INITIALIZATION
+# 1. LLM ENGINE SETUP (GOOGLE GEMINI WITH AUTO-FALLBACK)
 # ---------------------------------------------------------
 API_KEY = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
 if API_KEY:
     genai.configure(api_key=API_KEY)
-    llm_model = genai.GenerativeModel("gemini-1.5-flash")
+    # Attempt primary model with dynamic fallback chain
+    try:
+        llm_model = genai.GenerativeModel("gemini-2.0-flash")
+    except Exception:
+        try:
+            llm_model = genai.GenerativeModel("gemini-1.5-flash-latest")
+        except Exception:
+            llm_model = genai.GenerativeModel("gemini-pro")
 else:
     llm_model = None
 
@@ -153,7 +160,7 @@ if "active_id" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Sidebar Language Selector
+# Language Selection
 st.sidebar.title("🌐 Language / भाषा")
 lang = st.sidebar.selectbox(
     "Choose Language:", ["English", "Hindi", "Kannada", "Telugu", "Tamil"]
@@ -202,7 +209,7 @@ if not st.session_state.authenticated:
 
     st.stop()
 
-# Sidebar Logout
+# Sidebar Control
 st.sidebar.markdown(f"**Role:** {t['role_' + st.session_state.user_role.lower()]}")
 if st.sidebar.button(t["logout"]):
     st.session_state.authenticated = False
@@ -213,7 +220,7 @@ if st.sidebar.button(t["logout"]):
 
 st.title(t["title"])
 
-# State Safety Check
+# State Safety Safeguard
 if (
     st.session_state.active_id is None
     or st.session_state.active_id not in st.session_state.database
@@ -359,7 +366,7 @@ if prompt := st.chat_input(t["chat_placeholder"]):
     )
 
     system_instructions = f"""
-    You are an expert AI Cardiac Assistant for CardioGuard digital health platform.
+    You are an expert AI Cardiac Assistant inside CardioGuard platform.
     
     PATIENT PROFILE:
     - Name: {p_data['name']}
@@ -369,7 +376,7 @@ if prompt := st.chat_input(t["chat_placeholder"]):
     - Fasting Sugar > 120: {'Yes' if fbs==1 else 'No'}
     - Max Heart Rate: {thalach} bpm
     - ST Depression: {oldpeak}
-    - Calculated Risk: {risk_val}
+    - Calculated Risk Score: {risk_val}
     
     INSTRUCTIONS:
     1. Respond STRICTLY in language: {lang}.
