@@ -2,4 +2,4 @@ streamlit
 pandas
 joblib
 xgboost
-google-generativeai
+google-genai

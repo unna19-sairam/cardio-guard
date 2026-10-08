@@ -1,5 +1,5 @@
 import os
-import google.generativeai as genai
+from google import genai
 import joblib
 import pandas as pd
 import streamlit as st
@@ -7,22 +7,18 @@ import streamlit as st
 st.set_page_config(page_title="CardioGuard", page_icon="🫀", layout="wide")
 
 # ---------------------------------------------------------
-# 1. LLM ENGINE SETUP (GOOGLE GEMINI WITH AUTO-FALLBACK)
+# 1. LLM ENGINE SETUP (MODERN GOOGLE-GENAI SDK)
 # ---------------------------------------------------------
 API_KEY = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
 if API_KEY:
-    genai.configure(api_key=API_KEY)
-    # Attempt primary model with dynamic fallback chain
     try:
-        llm_model = genai.GenerativeModel("gemini-2.0-flash")
+        # Initialize modern client
+        llm_client = genai.Client(api_key=API_KEY)
     except Exception:
-        try:
-            llm_model = genai.GenerativeModel("gemini-1.5-flash-latest")
-        except Exception:
-            llm_model = genai.GenerativeModel("gemini-pro")
+        llm_client = None
 else:
-    llm_model = None
+    llm_client = None
 
 # ---------------------------------------------------------
 # 2. MULTILINGUAL UI DICTIONARY
@@ -388,12 +384,24 @@ if prompt := st.chat_input(t["chat_placeholder"]):
 
     with st.chat_message("assistant"):
         with st.spinner("Analyzing patient clinical metrics..."):
-            if llm_model:
-                try:
-                    response = llm_model.generate_content(full_prompt)
-                    reply = response.text
-                except Exception as err:
-                    reply = f"⚠️ LLM Error: {str(err)}"
+            if llm_client:
+                # Attempt primary recommended model, fallback to 1.5 if needed
+                models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
+                reply = None
+                
+                for m_name in models_to_try:
+                    try:
+                        res = llm_client.models.generate_content(
+                            model=m_name,
+                            contents=full_prompt,
+                        )
+                        reply = res.text
+                        break
+                    except Exception:
+                        continue
+
+                if not reply:
+                    reply = "⚠️ Error communicating with Gemini API. Please check your API key permissions."
             else:
                 reply = (
                     f"**[Demo Mode — Add GEMINI_API_KEY to Secrets]**\n\n"
