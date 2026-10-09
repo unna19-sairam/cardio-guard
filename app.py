@@ -3,6 +3,7 @@ import google.generativeai as genai
 import joblib
 import pandas as pd
 import streamlit as st
+import shap
 
 st.set_page_config(page_title="CardioGuard", page_icon="🫀", layout="wide")
 
@@ -15,27 +16,17 @@ llm_model = None
 if API_KEY:
     try:
         genai.configure(api_key=API_KEY)
-        
-        # Dynamically discover active models supporting generateContent
         available_models = [
             m.name for m in genai.list_models() 
             if 'generateContent' in m.supported_generation_methods
         ]
-        
-        # Priority order for selecting the best active model
         preferred_models = [
             "models/gemini-2.5-flash",
             "models/gemini-1.5-flash",
             "models/gemini-2.0-flash",
             "models/gemini-pro"
         ]
-        
-        selected_model_name = None
-        for p in preferred_models:
-            if p in available_models:
-                selected_model_name = p
-                break
-                
+        selected_model_name = next((p for p in preferred_models if p in available_models), None)
         if not selected_model_name and available_models:
             selected_model_name = available_models[0]
             
@@ -56,13 +47,16 @@ TRANSLATIONS = {
         "logout": "Logout",
         "role_patient": "Patient",
         "role_doctor": "Doctor",
-        "run_screening": "Run Diagnostic Screening",
+        "run_screening": "Run Diagnostic Screening & Explain Causes",
         "high_risk": "⚠️ High Heart Attack Risk Detected:",
         "low_risk": "✅ Low Heart Attack Risk Detected:",
         "doc_dashboard": "👨‍⚕️ Doctor Clinical Dashboard",
-        "select_patient": "Select Patient to Review:",
+        "select_patient": "Select Patient to Review/Update:",
         "chat_header": "💬 Interactive AI Clinical Assistant",
         "chat_placeholder": "Ask about cardiac risk factors, dietary plans, or lifestyle modifications...",
+        "save_record": "💾 Save Patient Record Updates",
+        "shap_header": "📊 Primary Risk Drivers & Cause Analysis (SHAP Explanation)",
+        "save_success": "Patient details saved successfully!",
     },
     "Hindi": {
         "title": "🫀 कार्डियोगार्ड: बहु-भूमिका कार्डियक प्लेटफॉर्म",
@@ -72,13 +66,16 @@ TRANSLATIONS = {
         "logout": "लॉग आउट",
         "role_patient": "मरीज़",
         "role_doctor": "डॉक्टर",
-        "run_screening": "निदान जांच चलाएं",
+        "run_screening": "निदान जांच चलाएं और कारणों का विश्लेषण करें",
         "high_risk": "⚠️ हृदयघात का उच्च जोखिम पाया गया:",
         "low_risk": "✅ हृदयघात का कम जोखिम पाया गया:",
         "doc_dashboard": "👨‍⚕️ डॉक्टर क्लिनिकल डैशबोर्ड",
         "select_patient": "समीक्षा के लिए मरीज़ चुनें:",
         "chat_header": "💬 एआई कार्डियक कंसल्टेंट (AI असिस्टेंट)",
         "chat_placeholder": "अपने दिल के स्वास्थ्य, आहार या सलाह के बारे में पूछें...",
+        "save_record": "💾 मरीज़ का रिकॉर्ड सुरक्षित करें",
+        "shap_header": "📊 जोखिम के मुख्य कारण (SHAP विश्लेषण)",
+        "save_success": "मरीज़ की जानकारी सफलतापूर्वक सहेजी गई!",
     },
     "Kannada": {
         "title": "🫀 ಕಾರ್ಡಿಯೋಗಾರ್ಡ್: ಮಲ್ಟಿ-ರೋಲ್ ಕಾರ್ಡಿಯಾಕ್ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್",
@@ -88,13 +85,16 @@ TRANSLATIONS = {
         "logout": "ಲಾಗ್‌ಔಟ್",
         "role_patient": "ರೋಗಿ",
         "role_doctor": "ವೈದ್ಯರು",
-        "run_screening": "ರೋಗನಿರ್ಣಯ ಪರೀಕ್ಷೆಯನ್ನು ಚಾಲನೆ ಮಾಡಿ",
+        "run_screening": "ರೋಗನಿರ್ಣಯ ಪರೀಕ್ಷೆಯನ್ನು ಚಾಲನೆ ಮಾಡಿ ಮತ್ತು ಕಾರಣಗಳನ್ನು ವಿಶ್ಲೇಷಿಸಿ",
         "high_risk": "⚠️ ಹೆಚ್ಚಿನ ಅಪಾಯ ಕಂಡುಬಂದಿದೆ:",
         "low_risk": "✅ ಕಡಿಮೆ ಅಪಾಯ ಕಂಡುಬಂದಿದೆ:",
         "doc_dashboard": "👨‍⚕️ ವೈದ್ಯಕೀಯ ಕ್ಲಿನಿಕಲ್ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
         "select_patient": "ಸಮೀಕ್ಷೆಗೆ ರೋಗಿಯನ್ನು ಆಯ್ಕೆಮಾಡಿ:",
         "chat_header": "💬 AI ಕಾರ್ಡಿಯಾಕ್ ಸಲಹೆಗಾರ",
         "chat_placeholder": "ನಿಮ್ಮ ಆರೋಗ್ಯ, ಆಹಾರದ ಬಗ್ಗೆ ಕೇಳಿ...",
+        "save_record": "💾 ರೋಗಿಯ ಮಾಹಿತಿಯನ್ನು ಉಳಿಸಿ",
+        "shap_header": "📊 ಪ್ರಮುಖ ಅಪಾಯದ ಕಾರಣಗಳು (SHAP ವಿವರಣೆ)",
+        "save_success": "ರೋಗಿಯ ವಿವರಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ!",
     },
     "Telugu": {
         "title": "🫀 కార్డియోగార్డ్: మల్టీ-రోల్ కార్డియాక్ ప్లాట్‌ఫారమ్",
@@ -104,13 +104,16 @@ TRANSLATIONS = {
         "logout": "లాగౌట్",
         "role_patient": "పేషెంట్",
         "role_doctor": "డాక్టర్",
-        "run_screening": "డయాగ్నోస్టిక్ స్క్రీనింగ్ రన్ చేయండి",
+        "run_screening": "డయాగ్నోస్టిక్ స్క్రీనింగ్ రన్ చేయండి మరియు కారణాలను విశ్లేషించండి",
         "high_risk": "⚠️ గుండెపోటు వచ్చే ప్రమాదం ఎక్కువగా ఉంది:",
         "low_risk": "✅ గుండెపోటు వచ్చే ప్రమాదం తక్కువగా ఉంది:",
         "doc_dashboard": "👨‍⚕️ డాక్టర్ క్లినికల్ డాష్‌బోర్డ్",
         "select_patient": "పరిశీలించడానికి పేషెంట్‌ను ఎంచుకోండి:",
         "chat_header": "💬 ఏఐ కార్డియాక్ కన్సల్టెంట్",
         "chat_placeholder": "మీ ఆరోగ్య, ఆహార సమస్యలను అడగండి...",
+        "save_record": "💾 పేషెంట్ రికార్డులను సేవ్ చేయండి",
+        "shap_header": "📊 ప్రధాన ప్రమాద కారకాలు (SHAP వివరణ)",
+        "save_success": "పేషెంట్ వివరాలు విజయవంతంగా సేవ్ చేయబడ్డాయి!",
     },
     "Tamil": {
         "title": "🫀 கார்டியோகார்ட்: மல்டி-ரோல் கார்டியாக் தளம்",
@@ -120,13 +123,16 @@ TRANSLATIONS = {
         "logout": "வெளியேறு",
         "role_patient": "நோயாளி",
         "role_doctor": "மருத்துவர்",
-        "run_screening": "பரிசோதனையை இயக்கவும்",
+        "run_screening": "பரிசோதனையை இயக்கவும் மற்றும் காரணங்களை ஆராயவும்",
         "high_risk": "⚠️ அபாயம் அதிகம்:",
         "low_risk": "✅ அபாயம் குறைவு:",
         "doc_dashboard": "👨‍⚕️ மருத்துவர் மருத்துவ டாஷ்போர்டு",
         "select_patient": "நோயாளியைத் தேர்ந்தெடுக்கவும்:",
         "chat_header": "💬 ஏஐ இதய ஆலோசனைக் உதவியாளர்",
         "chat_placeholder": "உங்கள் ஆரோக்கியம் குறித்து கேட்கவும்...",
+        "save_record": "💾 நோயாளி பதிவை சேமிக்கவும்",
+        "shap_header": "📊 முக்கிய ஆபத்து காரணிகள் (SHAP பகுப்பாய்வு)",
+        "save_success": "நோயாளி விவரங்கள் வெற்றிகரமாக சேமிக்கப்பட்டன!",
     },
 }
 
@@ -197,14 +203,9 @@ if not st.session_state.authenticated:
     with tab1:
         st.subheader(t["patient_login"])
         p_id = st.text_input("Patient ID (e.g., P101, P102)", value="P101")
-        p_pass = st.text_input(
-            "Password", type="password", value="pass123", key="p_pass"
-        )
+        p_pass = st.text_input("Password", type="password", value="pass123", key="p_pass")
         if st.button("Login as Patient"):
-            if (
-                p_id in st.session_state.database
-                and st.session_state.database[p_id]["pass"] == p_pass
-            ):
+            if p_id in st.session_state.database and st.session_state.database[p_id]["pass"] == p_pass:
                 st.session_state.authenticated = True
                 st.session_state.user_role = "Patient"
                 st.session_state.active_id = p_id
@@ -215,9 +216,7 @@ if not st.session_state.authenticated:
     with tab2:
         st.subheader(t["doctor_login"])
         d_id = st.text_input("Doctor ID", value="DOC01")
-        d_pass = st.text_input(
-            "Password", type="password", value="doc123", key="d_pass"
-        )
+        d_pass = st.text_input("Password", type="password", value="doc123", key="d_pass")
         if st.button("Login as Doctor"):
             if d_id == "DOC01" and d_pass == "doc123":
                 st.session_state.authenticated = True
@@ -240,11 +239,7 @@ if st.sidebar.button(t["logout"]):
 
 st.title(t["title"])
 
-# State Safety Safeguard
-if (
-    st.session_state.active_id is None
-    or st.session_state.active_id not in st.session_state.database
-):
+if st.session_state.active_id is None or st.session_state.active_id not in st.session_state.database:
     st.session_state.active_id = list(st.session_state.database.keys())[0]
 
 # ---------------------------------------------------------
@@ -256,9 +251,7 @@ if st.session_state.user_role == "Doctor":
     selected_p = st.selectbox(
         t["select_patient"],
         list(st.session_state.database.keys()),
-        index=list(st.session_state.database.keys()).index(
-            st.session_state.active_id
-        ),
+        index=list(st.session_state.database.keys()).index(st.session_state.active_id),
     )
     st.session_state.active_id = selected_p
 
@@ -272,9 +265,7 @@ if st.session_state.user_role == "Doctor":
                 "BP (mm Hg)": data["trestbps"],
                 "Cholesterol": data["chol"],
                 "Calculated Risk": (
-                    f"{data['risk']:.1f}%"
-                    if data["risk"] is not None
-                    else "Not Screened"
+                    f"{data['risk']:.1f}%" if data["risk"] is not None else "Not Screened"
                 ),
             }
         )
@@ -287,58 +278,34 @@ st.subheader(f"Patient Profile: {p_data['name']} (ID: {st.session_state.active_i
 col1, col2, col3 = st.columns(3)
 with col1:
     age = st.number_input("Age", 20, 100, int(p_data["age"]))
-    sex = st.selectbox(
-        "Sex",
-        [0, 1],
-        index=int(p_data["sex"]),
-        format_func=lambda x: "Female" if x == 0 else "Male",
-    )
-    cp = st.selectbox(
-        "Chest Pain Type (0-3)", [0, 1, 2, 3], index=int(p_data["cp"])
-    )
-    trestbps = st.number_input(
-        "Resting BP (mm Hg)", 80, 200, int(p_data["trestbps"])
-    )
+    sex = st.selectbox("Sex", [0, 1], index=int(p_data["sex"]), format_func=lambda x: "Female" if x == 0 else "Male")
+    cp = st.selectbox("Chest Pain Type (0-3)", [0, 1, 2, 3], index=int(p_data["cp"]))
+    trestbps = st.number_input("Resting BP (mm Hg)", 80, 200, int(p_data["trestbps"]))
 
 with col2:
-    chol = st.number_input(
-        "Cholesterol (mg/dl)", 100, 600, int(p_data["chol"])
-    )
-    fbs = st.selectbox(
-        "Fasting Blood Sugar > 120", [0, 1], index=int(p_data["fbs"])
-    )
-    restecg = st.selectbox(
-        "Resting ECG", [0, 1, 2], index=int(p_data["restecg"])
-    )
-    thalach = st.number_input(
-        "Max Heart Rate", 60, 220, int(p_data["thalach"])
-    )
+    chol = st.number_input("Cholesterol (mg/dl)", 100, 600, int(p_data["chol"]))
+    fbs = st.selectbox("Fasting Blood Sugar > 120", [0, 1], index=int(p_data["fbs"]))
+    restecg = st.selectbox("Resting ECG", [0, 1, 2], index=int(p_data["restecg"]))
+    thalach = st.number_input("Max Heart Rate", 60, 220, int(p_data["thalach"]))
 
 with col3:
-    exang = st.selectbox(
-        "Exercise Angina", [0, 1], index=int(p_data["exang"])
-    )
-    oldpeak = st.number_input(
-        "ST Depression", 0.0, 6.2, float(p_data["oldpeak"])
-    )
+    exang = st.selectbox("Exercise Angina", [0, 1], index=int(p_data["exang"]))
+    oldpeak = st.number_input("ST Depression", 0.0, 6.2, float(p_data["oldpeak"]))
     slope = st.selectbox("ST Slope", [0, 1, 2], index=int(p_data["slope"]))
-    ca = st.selectbox(
-        "Fluoroscopy Vessels (0-3)", [0, 1, 2, 3], index=int(p_data["ca"])
-    )
+    ca = st.selectbox("Fluoroscopy Vessels (0-3)", [0, 1, 2, 3], index=int(p_data["ca"]))
+
+# Ability for patients & doctors to save record updates
+if st.button(t["save_record"]):
+    p_data.update({
+        "age": age, "sex": sex, "cp": cp, "trestbps": trestbps,
+        "chol": chol, "fbs": fbs, "restecg": restecg, "thalach": thalach,
+        "exang": exang, "oldpeak": oldpeak, "slope": slope, "ca": ca
+    })
+    st.success(t["save_success"])
 
 feature_names = [
-    "age",
-    "sex",
-    "cp",
-    "trestbps",
-    "chol",
-    "fbs",
-    "restecg",
-    "thalach",
-    "exang",
-    "oldpeak",
-    "slope",
-    "ca",
+    "age", "sex", "cp", "trestbps", "chol", "fbs", 
+    "restecg", "thalach", "exang", "oldpeak", "slope", "ca"
 ]
 input_df = pd.DataFrame(
     [[age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca]],
@@ -347,6 +314,7 @@ input_df = pd.DataFrame(
 
 if st.button(t["run_screening"]):
     try:
+        # MODEL 1: Detect Heart Attack Risk
         model = joblib.load("cardio.plk")
         booster_features = model.get_booster().feature_names
         if booster_features:
@@ -363,8 +331,28 @@ if st.button(t["run_screening"]):
         else:
             st.success(f"{t['low_risk']} **{risk_prob:.1f}%**")
 
+        # MODEL 2: Explain Causes of Heart Attack (SHAP Explainer)
+        st.markdown("---")
+        st.subheader(t["shap_header"])
+        explainer = joblib.load("explainer.bz2")
+        shap_values = explainer(input_df)
+
+        # Calculate absolute SHAP impact per feature
+        shap_df = pd.DataFrame({
+            "Feature": feature_names,
+            "Impact Score": shap_values.values[0]
+        }).sort_values(by="Impact Score", ascending=False)
+
+        col_left, col_right = st.columns([1, 1])
+        with col_left:
+            st.write("**Top Factors Increasing/Decreasing Risk:**")
+            st.dataframe(shap_df.reset_index(drop=True))
+        with col_right:
+            st.write("**Visual Risk Factors Contribution:**")
+            st.bar_chart(shap_df.set_index("Feature")["Impact Score"])
+
     except Exception as e:
-        st.error(f"Error running diagnostic model: {e}")
+        st.error(f"Error running diagnostic/explanation model: {e}")
 
 # ---------------------------------------------------------
 # 6. DYNAMIC LLM-POWERED CHATBOT
